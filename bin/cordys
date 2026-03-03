@@ -44,30 +44,26 @@ PY
 }
 
 # ── API 封装（Header Key 鉴权）────────────────────────────────────────
-api() {
-  local method="$1" url="$2"
-  shift 2
+api_request() {
+  local method="$1" url="$2" content_type="$3"
+  shift 3
 
   check_keys
 
+  # 通过 `"$@"` 保证额外的参数能够传递给 curl
   curl -s -X "$method" "$url" \
     -H "X-Access-Key: ${CORDYS_ACCESS_KEY}" \
     -H "X-Secret-Key: ${CORDYS_SECRET_KEY}" \
-    -H "Content-Type: application/json" \
-    "$@"
+    -H "Content-Type: $content_type" \
+    "$@"  # 传递剩余的所有参数
+}
+
+api() {
+  api_request "$1" "$2" "application/json" "${@:3}"  # 传递 method, url 和其余的参数
 }
 
 api_form() {
-  local method="$1" url="$2"
-  shift 2
-
-  check_keys
-
-  curl -s -X "$method" "$url" \
-    -H "X-Access-Key: ${CORDYS_ACCESS_KEY}" \
-    -H "X-Secret-Key: ${CORDYS_SECRET_KEY}" \
-    -H "Content-Type: application/x-www-form-urlencoded" \
-    "$@"
+  api_request "$1" "$2" "application/x-www-form-urlencoded" "${@:3}"  # 同样地，传递其余的参数
 }
 
 # ── CRM 辅助函数 ──────────────────────────────────────────────────────
@@ -134,6 +130,16 @@ crm_product() {
     body=$(page_payload "${keyword}")
   fi
   api POST "${CORDYS_CRM_DOMAIN}/field/source/product" -d "$body"
+}
+
+# 获取组织架构
+crm_org() {
+  api GET "${crm_base}/department/tree"
+}
+
+# 根据部门ID获取成员
+crm_members() {
+  api POST "${crm_base}/user/list" -d "$1"
 }
 
 # ── 原始 API 调用 ─────────────────────────────────────────────────────
